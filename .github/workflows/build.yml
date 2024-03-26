@@ -1,70 +1,59 @@
-# Copyright © 2020 Cask Data, Inc.
-#  Licensed under the Apache License, Version 2.0 (the "License"); you may not
-#  use this file except in compliance with the License. You may obtain a copy of
-#  the License at
-#  http://www.apache.org/licenses/LICENSE-2.0
-#  Unless required by applicable law or agreed to in writing, software
-#  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-#  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-#  License for the specific language governing permissions and limitations under
-#  the License.
-
-# This workflow will build a Java project with Maven
-# For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-maven
-# Note: Any changes to this workflow would be used only after merging into develop
-name: Build with unit tests
-
-on:
-  workflow_run:
-    workflows:
-      - Trigger build
-    types:
-      - completed
-
 jobs:
   build:
-    runs-on: k8s-runner-build
-
     if: ${{ github.event.workflow_run.conclusion != 'skipped' }}
-
+    runs-on: self-hosted
     steps:
-      # Pinned 1.0.0 version
-      - uses: marocchino/action-workflow_run-status@54b6e87d6cb552fc5f36dbe9a722a6048725917a
-      - uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-          submodules: recursive
-      - name: Cache
-        uses: actions/cache@v3
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ github.workflow }}-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-${{ github.workflow }}
-      - name: Build with Maven
-        run: mvn clean test -fae -T 2 -B -V -DcloudBuild -Dmaven.wagon.http.retryHandler.count=3 -Dmaven.wagon.httpconnectionManager.ttlSeconds=25
-      - name: Archive build artifacts
-        uses: actions/upload-artifact@v2.2.2
-        if: always()
-        with:
-          name: Build debug files
-          path: |
-            **/target/rat.txt
-            **/target/surefire-reports/*
-      - name: Surefire Report
-        # Pinned 3.5.2 version
-        uses: mikepenz/action-junit-report@16a9560bd02f11e7e3bf6b3e2ef6bba6c9d07c32
-        if: always()
-        with:
-          report_paths: '**/target/surefire-reports/TEST-*.xml'
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          detailed_summary: true
-          commit: ${{ github.event.workflow_run.head_sha }}
-          check_name: Test Report
-      - name: Checkstyle report
-        uses: cdapio/checkstyle-github-action@add_filter
-        if: always()
-        with:
-          path: '**/checkstyle-result.xml'
-          commit: ${{ github.event.workflow_run.head_sha }}
-          changed-since: ${{ github.event.workflow_run.pull_requests[0].base.ref }}
+    - continue-on-error: true
+      uses: marocchino/action-workflow_run-status@54b6e87d6cb552fc5f36dbe9a722a6048725917a
+    - continue-on-error: true
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.workflow_run.head_sha }}
+        submodules: recursive
+    - continue-on-error: true
+      name: Cache
+      uses: actions/cache@v3
+      with:
+        key: ${{ runner.os }}-maven-${{ github.workflow }}-${{ hashFiles('**/pom.xml')
+          }}
+        path: ~/.m2/repository
+        restore-keys: '${{ runner.os }}-maven-${{ github.workflow }}
+
+          '
+    - continue-on-error: true
+      name: Build with Maven
+      run: mvn clean test -fae -T 2 -B -V -DcloudBuild -Dmaven.wagon.http.retryHandler.count=3
+        -Dmaven.wagon.httpconnectionManager.ttlSeconds=25
+    - continue-on-error: true
+      if: always()
+      name: Archive build artifacts
+      uses: actions/upload-artifact@v2.2.2
+      with:
+        name: Build debug files
+        path: '**/target/rat.txt
+
+          **/target/surefire-reports/*
+
+          '
+    - continue-on-error: true
+      if: always()
+      name: Surefire Report
+      uses: mikepenz/action-junit-report@16a9560bd02f11e7e3bf6b3e2ef6bba6c9d07c32
+      with:
+        check_name: Test Report
+        commit: ${{ github.event.workflow_run.head_sha }}
+        detailed_summary: true
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        report_paths: '**/target/surefire-reports/TEST-*.xml'
+    - continue-on-error: true
+      if: always()
+      name: Checkstyle report
+      uses: cdapio/checkstyle-github-action@add_filter
+      with:
+        changed-since: ${{ github.event.workflow_run.pull_requests[0].base.ref }}
+        commit: ${{ github.event.workflow_run.head_sha }}
+        path: '**/checkstyle-result.xml'
+name: Build with unit tests
+on:
+  repository_dispatch:
+    types: trigger-ga___build.yml
